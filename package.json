@@ -1,0 +1,32 @@
+{
+  "name": "avatarfordisabilitybackend",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/AmmarHussainn/avatarfordisabilitybackend#readme",
+  "bugs": {
+    "url": "https://github.com/AmmarHussainn/avatarfordisabilitybackend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AmmarHussainn/avatarfordisabilitybackend.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-validator": "^7.2.1",
+    "handlebars": "^4.7.8",
+    "mongoose": "^8.16.3",
+    "nodemailer": "^7.0.5",
+    "path": "^0.12.7",
+    "pdf-lib": "^1.17.1",
+    "puppeteer": "^24.13.0"
+  }
+}
