@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Disability Report Appeal</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+        width: 210mm;
+        height: 297mm;
+      }
+      .form-container {
+        width: 100%;
+        max-width: 100%;
+      }
+      .form-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 20px;
+      }
+      .form-field {
+        margin-bottom: 15px;
+      }
+      .form-field label {
+        display: inline-block;
+        margin-bottom: 5px;
+      }
+      .form-field input[type="text"] {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-bottom: 1px solid #000;
+      }
+      .doctor-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      .doctor-table td {
+        padding: 8px;
+        border: 1px solid #000;
+        vertical-align: top;
+      }
+      .doctor-table th {
+        padding: 8px;
+        border: 1px solid #000;
+        text-align: left;
+        background-color: #f2f2f2;
+      }
+      .checkbox-group {
+        margin: 5px 0;
+      }
+      .checkbox-option {
+        margin-right: 15px;
+         white-space: nowrap;
+  display: inline-block;
+      }
+      .checkbox-selected {
+        font-weight: bold;
+        color: #000;
+      }
+      .section-title {
+        font-weight: bold;
+        margin: 20px 0 10px 0;
+      }
+      .underline {
+        border-bottom: 1px solid #000;
+        display: inline-block;
+        min-width: 200px;
+      }
+      .contact-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      .contact-table td {
+        padding: 8px;
+        border: 1px solid #000;
+      }
+      .page-break {
+        page-break-after: always;
+      }
+      .filled-text {
+        min-height: 20px;
+        border-bottom: 1px solid #000;
+        display: inline-block;
+        padding-bottom: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="form-container">
+      <div
+        class="form-title"
+        style="
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        Name: <span class="filled-text">{{name}}</span> SSN:
+        <span class="filled-text">{{ssn}}</span>
+      </div>
+
+      <div class="section-title">
+        1. Have you had any medical appointments in the last 60 days (in person
+        or telehealth) or do you have any upcoming appointments scheduled? {{#if
+        medicalAppointments.length}}Yes{{else}}No{{/if}} If yes, please provide:
+      </div>
+
+      {{#each medicalAppointments}}
+      <table class="doctor-table">
+        <tr>
+          <td>Doctor Name: <span class="filled-text">{{doctorName}}</span></td>
+          <td>Office Name:   <span class="filled-text">{{officeName}}</span></td>
+        </tr>
+       
+        <tr>
+          <td>Address: <span class="filled-text">{{address}}</span></td>
+          <td>Medical Conditions Treated: <span class="filled-text">{{medicalConditionsTreated}}</span></td>
+        </tr>
+        
+        <tr>
+          <td>Phone: <span class="filled-text">{{phone}}</span></td>
+          <td>Fax: <span class="filled-text">{{fax}}</span></td>
+        </tr>
+       
+        <tr>
+          <td>Date of Last Appointment:  <span class="filled-text">{{formatDate dateOfLastAppointment}}</span></td>
+          <td>Date of Next Appointment:  <span class="filled-text">{{formatDate dateOfNextAppointment}}</span></td>
+        </tr>
+      
+        <tr>
+          <!-- Replace checkbox sections with this: -->
+          <td>
+            <div class="checkbox-group">
+              <span
+                class="checkbox-option {{#if isNewDoctor}}checkbox-selected{{/if}}"
+              >
+                {{#if isNewDoctor}}☑{{else}}☐{{/if}} New Doctor
+              </span>
+              <span
+                class="checkbox-option {{#if isDoctorSeenPreviously}}checkbox-selected{{/if}}"
+              >
+                {{#if isDoctorSeenPreviously}}☑{{else}}☐{{/if}} Doctor Seen
+                Previously
+              </span>
+            </div>
+            <div class="checkbox-group">
+              <span
+                class="checkbox-option {{#if isFamilyDoctor}}checkbox-selected{{/if}}"
+              >
+                {{#if isFamilyDoctor}}☑{{else}}☐{{/if}} Family Doctor
+              </span>
+              <span
+                class="checkbox-option {{#if isSpecialist}}checkbox-selected{{/if}}"
+              >
+                {{#if isSpecialist}}☑{{else}}☐{{/if}} Specialist
+              </span>
+            </div>
+            If Specialist, Type of Specialist:
+            <span class="filled-text">{{specialistType}}</span>
+          </td>
+          <td>
+            Any testing/imaging ordered by the doctor?
+            <span class="filled-text">{{boolToYesNo testingOrdered}}</span
+            ><br />
+            Type of testing: <span class="filled-text">{{testingType}}</span
+            ><br />
+            When: <span class="filled-text">{{formatDate testingWhen}}</span
+            ><br />
+            Name/address of facility where testing is:
+            <span class="filled-text">{{testingFacility}}</span>
+          </td>
+        </tr>
+      </table>
+      {{/each}} {{#if (gt medicalAppointments.length 2)}}
+      <div class="page-break"></div>
+      {{/if}} {{#each medicalAppointments}} {{#if (gt @index 1)}}
+      <table class="doctor-table">
+        <tr>
+          <td>Doctor Name:</td>
+          <td>Office Name:</td>
+        </tr>
+        <tr>
+          <td><span class="filled-text">{{doctorName}}</span></td>
+          <td><span class="filled-text">{{officeName}}</span></td>
+        </tr>
+        <tr>
+          <td>Address:</td>
+          <td>Medical Conditions Treated:</td>
+        </tr>
+        <tr>
+          <td><span class="filled-text">{{address}}</span></td>
+          <td><span class="filled-text">{{medicalConditionsTreated}}</span></td>
+        </tr>
+        <tr>
+          <td>Phone:</td>
+          <td>Fax:</td>
+        </tr>
+        <tr>
+          <td><span class="filled-text">{{phone}}</span></td>
+          <td><span class="filled-text">{{fax}}</span></td>
+        </tr>
+        <tr>
+          <td>Date of Last Appointment:    <span class="filled-text" >{{formatDate dateOfLastAppointment}}</span ></td>
+          <td>Date of Next Appointment:  <span class="filled-text" >{{formatDate dateOfNextAppointment}}</span ></td>
+        </tr>
+       
+        <tr>
+          <!-- Replace checkbox sections with this: -->
+<td>
+  <div class="checkbox-group">
+    <span class="checkbox-option {{#if isNewDoctor}}checkbox-selected{{/if}}">
+      {{#if isNewDoctor}}☑{{else}}☐{{/if}} New Doctor
+    </span>
+    <span class="checkbox-option {{#if isDoctorSeenPreviously}}checkbox-selected{{/if}}">
+      {{#if isDoctorSeenPreviously}}☑{{else}}☐{{/if}} Doctor Seen Previously
+    </span>
+  </div>
+  <div class="checkbox-group">
+    <span class="checkbox-option {{#if isFamilyDoctor}}checkbox-selected{{/if}}">
+      {{#if isFamilyDoctor}}☑{{else}}☐{{/if}} Family Doctor
+    </span>
+    <span class="checkbox-option {{#if isSpecialist}}checkbox-selected{{/if}}">
+      {{#if isSpecialist}}☑{{else}}☐{{/if}} Specialist
+    </span>
+  </div>
+  If Specialist, Type of Specialist: <span class="filled-text">{{specialistType}}</span>
+</td>
+          <td>
+            Any testing/imaging ordered by the doctor?
+            <span class="filled-text">{{boolToYesNo testingOrdered}}</span
+            ><br />
+            Type of testing: <span class="filled-text">{{testingType}}</span
+            ><br />
+            When: <span class="filled-text">{{formatDate testingWhen}}</span
+            ><br />
+            Name/address of facility where testing is:
+            <span class="filled-text">{{testingFacility}}</span>
+          </td>
+        </tr>
+      </table>
+      {{/if}} {{/each}}
+
+      <div class="page-break"></div>
+
+      <div class="section-title">
+        2. How have your medical conditions and/or symptoms changed or gotten
+        worse in the last 60 days?
+        <span class="filled-text"
+          >{{boolToYesNo conditionChanges.hasChanges}}</span
+        >
+        If yes, please briefly explain.
+      </div>
+      <div class="form-field">
+        <div
+          style="
+            width: 100%;
+            min-height: 80px;
+            border: 1px solid #000;
+            padding: 5px;
+          "
+        >
+          {{conditionChanges.description}}
+        </div>
+      </div>
+
+      <div class="section-title">
+        3. Approximately when in the last 60 days did this change happen?
+      </div>
+      <div class="form-field">
+        <span class="filled-text"
+          >{{formatDate conditionChanges.whenChanged}}</span
+        >
+      </div>
+
+      <div class="section-title">
+        4. Any new changes or limitations in your day-to-day activities
+        (cooking, cleaning, personal care, shopping, driving, socializing, etc.)
+        in the last 60 days?
+        <span class="filled-text"
+          >{{boolToYesNo activityLimitations.hasLimitations}}</span
+        >
+        If yes, please briefly provide example(s).
+      </div>
+      <div class="form-field">
+        <div
+          style="
+            width: 100%;
+            min-height: 80px;
+            border: 1px solid #000;
+            padding: 5px;
+          "
+        >
+          {{activityLimitations.examples}}
+        </div>
+      </div>
+
+      <div class="section-title">
+        5. If we cannot reach you, please provide someone we can contact and
+        talk to about your claim.
+      </div>
+      <table class="contact-table">
+        <tr>
+          <td>
+            Name: <span class="filled-text">{{emergencyContact.name}}</span>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            Phone Number:
+            <span class="filled-text">{{emergencyContact.phone}}</span>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            Relationship to you:
+            <span class="filled-text">{{emergencyContact.relationship}}</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </body>
+</html>

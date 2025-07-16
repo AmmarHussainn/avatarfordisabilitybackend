@@ -5,12 +5,13 @@ const axios = require("axios");
 const nodemailer = require("nodemailer");
 const fsPromises = require("fs").promises;
 const { body, validationResult } = require("express-validator");
-const { PDFDocument, rgb } = require('pdf-lib');
+
 const puppeteer = require('puppeteer');
 const path = require('path')
 const fs = require('fs').promises;
 const handlebars = require('handlebars');
-
+const pdf = require('html-pdf');
+const { PDFDocument } = require('pdf-lib');
 require("dotenv").config();
 
 const app = express();
@@ -134,14 +135,17 @@ async function generateDisabilityAppealPDF(formData) {
     const templatePath = path.join(__dirname, 'disability-appeal-template.html');
     const htmlTemplate = await fs.readFile(templatePath, 'utf8');
 
+    // Convert Mongoose document to plain object
+    const plainData = formData.toObject ? formData.toObject() : formData;
+    
     // Prepare template data
     const templateData = {
-      name: formData.name,
-      ssn: formData.ssn,
-      medicalAppointments: formData.medicalAppointments || [],
-      conditionChanges: formData.conditionChanges || {},
-      activityLimitations: formData.activityLimitations || {},
-      emergencyContact: formData.emergencyContact || {}
+      name: plainData.name,
+      ssn: plainData.ssn,
+      medicalAppointments: plainData.medicalAppointments || [],
+      conditionChanges: plainData.conditionChanges || {},
+      activityLimitations: plainData.activityLimitations || {},
+      emergencyContact: plainData.emergencyContact || {}
     };
 
     // Register Handlebars helpers
@@ -154,6 +158,10 @@ async function generateDisabilityAppealPDF(formData) {
       return value ? 'Yes' : 'No';
     });
 
+    handlebars.registerHelper('gt', function(a, b) {
+      return a > b;
+    });
+
     // Compile template
     const template = handlebars.compile(htmlTemplate);
     const html = template(templateData);
@@ -161,39 +169,30 @@ async function generateDisabilityAppealPDF(formData) {
     // Debug: Save HTML for inspection
     await fs.writeFile('debug_disability_appeal.html', html);
 
-    // Generate PDF using Puppeteer
-    const browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--single-process'
-      ],
-      executablePath: '/usr/bin/chromium-browser'
+    // PDF generation options (matches your A4 requirements)
+    const pdfOptions = {
+      format: 'A4',
+      orientation: 'portrait',
+     
+      type: 'pdf',
+      quality: '100',
+      timeout: 60000
+    };
+
+    // Generate PDF
+    const pdfFileName = `Disability_Appeal_${Date.now()}.pdf`;
+    
+    return new Promise((resolve, reject) => {
+      pdf.create(html, pdfOptions).toFile(pdfFileName, (err, res) => {
+        if (err) {
+          console.error('PDF generation failed:', err);
+          return reject(err);
+        }
+        console.log('PDF generated successfully:', res.filename);
+        resolve(pdfFileName);
+      });
     });
 
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, {
-        waitUntil: 'networkidle0',
-        timeout: 30000
-      });
-
-      await page.setViewport({ width: 1080, height: 1024 });
-
-      const pdfFileName = `Disability_Appeal_${Date.now()}.pdf`;
-      await page.pdf({
-        path: pdfFileName,
-        format: 'A4',
-        printBackground: true,
-      });
-
-      return pdfFileName;
-    } finally {
-      await browser.close();
-    }
   } catch (error) {
     console.error('PDF generation failed:', error);
     throw error;
@@ -227,7 +226,7 @@ app.post("/api/disability-appeal", validateDisabilityAppeal, async (req, res) =>
       // Send email with PDF attachment
       const mailOptions = {
         from: process.env.EMAIL_USER,
-        to: ["ammar@meetgabbi.com", "ayaz.ext@gmail.com", "erik@meetgabbi.com", "forms@linerlegal.com"],
+        to: ["ammar@meetgabbi.com", "ayaz.ext@gmail.com"],
         subject: `Disability Appeal Form Submission - ${savedAppeal.name}`,
         text: `Dear Team,\n\nA new disability appeal form has been submitted by ${savedAppeal.name}. Please find attached the PDF containing the submitted information.\n\nBest regards,\nSystem`,
         attachments: [{ 
