@@ -1,18 +1,18 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const axios = require("axios");
-const nodemailer = require("nodemailer");
-const fsPromises = require("fs").promises;
-const { body, validationResult } = require("express-validator");
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const axios = require('axios');
+const nodemailer = require('nodemailer');
+const fsPromises = require('fs').promises;
+const { body, validationResult } = require('express-validator');
 
 const puppeteer = require('puppeteer');
-const path = require('path')
+const path = require('path');
 const fs = require('fs').promises;
 const handlebars = require('handlebars');
 const pdf = require('html-pdf');
 const { PDFDocument } = require('pdf-lib');
-require("dotenv").config();
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -27,8 +27,8 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Mongoose Schemas
 const medicalAppointmentSchema = new mongoose.Schema({
@@ -38,8 +38,24 @@ const medicalAppointmentSchema = new mongoose.Schema({
   medicalConditionsTreated: { type: String, trim: true },
   phone: { type: String, trim: true },
   fax: { type: String, trim: true },
-  dateOfLastAppointment: { type: Date },
-  dateOfNextAppointment: { type: Date },
+  dateOfLastAppointment: {
+    type: String,
+    required: true,
+    validate: {
+      validator: function (value) {
+        return value === "NA" || /^\d{4}-\d{2}-\d{2}$/.test(value);
+      },
+      message: "startDate must be 'NA' or in YYYY-MM format",
+    }},
+  dateOfNextAppointment: {
+    type: String,
+    required: true,
+    validate: {
+      validator: function (value) {
+        return value === "NA" || /^\d{4}-\d{2}-\d{2}$/.test(value);
+      },
+      message: "startDate must be 'NA' or in YYYY-MM format",
+    }},
   isNewDoctor: { type: Boolean },
   isDoctorSeenPreviously: { type: Boolean },
   isFamilyDoctor: { type: Boolean },
@@ -47,14 +63,31 @@ const medicalAppointmentSchema = new mongoose.Schema({
   specialistType: { type: String, trim: true },
   testingOrdered: { type: Boolean },
   testingType: { type: String, trim: true },
-  testingWhen: { type: Date },
+  testingWhen: {
+    type: String,
+    required: true,
+    validate: {
+      validator: function (value) {
+        return value === "NA" || /^\d{4}-\d{2}-\d{2}$/.test(value);
+      },
+      message: "startDate must be 'NA' or in YYYY-MM format",
+    }},
   testingFacility: { type: String, trim: true },
 });
 
 const conditionChangesSchema = new mongoose.Schema({
   hasChanges: { type: Boolean, required: true },
   description: { type: String, trim: true },
-  whenChanged: { type: Date },
+  // whenChanged: { type: Date },
+  whenChanged:{
+    type: String,
+    required: true,
+    validate: {
+      validator: function (value) {
+        return value === "NA" || /^\d{4}-\d{2}-\d{2}$/.test(value);
+      },
+      message: "startDate must be 'NA' or in YYYY-MM format",
+    }},
 });
 
 const activityLimitationsSchema = new mongoose.Schema({
@@ -78,13 +111,22 @@ const disabilityAppealSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
-const DisabilityAppeal = mongoose.model("DisabilityAppeal", disabilityAppealSchema);
+const DisabilityAppeal = mongoose.model(
+  'DisabilityAppeal',
+  disabilityAppealSchema
+);
 
 // Validation Middleware
 const validateDisabilityAppeal = [
   // Step 1 - Personal Information
-  body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
-  body('ssn').trim().matches(/^\d{4}$/).withMessage('SSN must be 4 digits'),
+  body('name')
+    .trim()
+    .isLength({ min: 2 })
+    .withMessage('Name must be at least 2 characters'),
+  body('ssn')
+    .trim()
+    .matches(/^\d{4}$/)
+    .withMessage('SSN must be 4 digits'),
 
   // Step 2 - Medical Appointments
   body('medicalAppointments').isArray(),
@@ -94,8 +136,8 @@ const validateDisabilityAppeal = [
   body('medicalAppointments.*.medicalConditionsTreated').optional().trim(),
   body('medicalAppointments.*.phone').optional().trim(),
   body('medicalAppointments.*.fax').optional().trim(),
-  body('medicalAppointments.*.dateOfLastAppointment').optional().isISO8601(),
-  body('medicalAppointments.*.dateOfNextAppointment').optional().isISO8601(),
+  body('medicalAppointments.*.dateOfLastAppointment').trim().custom((value) => value === 'NA' || value === 'present' || /^\d{4}-\d{2}-\d{2}$/.test(value)),
+  body('medicalAppointments.*.dateOfNextAppointment').trim().custom((value) => value === 'NA' || value === 'present' || /^\d{4}-\d{2}-\d{2}$/.test(value)),
   body('medicalAppointments.*.isNewDoctor').optional().isBoolean(),
   body('medicalAppointments.*.isDoctorSeenPreviously').optional().isBoolean(),
   body('medicalAppointments.*.isFamilyDoctor').optional().isBoolean(),
@@ -103,7 +145,9 @@ const validateDisabilityAppeal = [
   body('medicalAppointments.*.specialistType').optional().trim(),
   body('medicalAppointments.*.testingOrdered').optional().isBoolean(),
   body('medicalAppointments.*.testingType').optional().trim(),
-  body('medicalAppointments.*.testingWhen').optional().isISO8601(),
+  body('medicalAppointments.*.testingWhen').trim().custom((value) => value === 'NA' || value === 'present' || /^\d{4}-\d{2}-\d{2}$/.test(value)),
+
+
   body('medicalAppointments.*.testingFacility').optional().trim(),
 
   // Step 3 - Condition Changes & Activities
@@ -113,9 +157,10 @@ const validateDisabilityAppeal = [
     .notEmpty()
     .withMessage('Description is required when changes exist'),
   body('conditionChanges.whenChanged')
-    .if(body('conditionChanges.hasChanges').equals(true))
-    .optional()
-    .isISO8601(),
+  .trim().custom((value) => value === 'NA' || value === 'present' || /^\d{4}-\d{2}-\d{2}$/.test(value)),
+    // .if(body('conditionChanges.hasChanges').equals(true))
+    // .optional()
+    // .isISO8601(),
 
   body('activityLimitations.hasLimitations').isBoolean(),
   body('activityLimitations.examples')
@@ -137,7 +182,7 @@ const validateDisabilityAppeal = [
 
 //     // Convert Mongoose document to plain object
 //     const plainData = formData.toObject ? formData.toObject() : formData;
-    
+
 //     // Prepare template data
 //     const templateData = {
 //       name: plainData.name,
@@ -173,7 +218,7 @@ const validateDisabilityAppeal = [
 //     const pdfOptions = {
 //       format: 'A4',
 //       orientation: 'portrait',
-     
+
 //       type: 'pdf',
 //       quality: '100',
 //       timeout: 60000
@@ -181,7 +226,7 @@ const validateDisabilityAppeal = [
 
 //     // Generate PDF
 //     const pdfFileName = `Disability_Appeal_${Date.now()}.pdf`;
-    
+
 //     return new Promise((resolve, reject) => {
 //       pdf.create(html, pdfOptions).toFile(pdfFileName, (err, res) => {
 //         if (err) {
@@ -199,10 +244,12 @@ const validateDisabilityAppeal = [
 //   }
 // }
 
-
 async function generateDisabilityAppealPDF(formData) {
   try {
-    const templatePath = path.join(__dirname, 'disability-appeal-template.html');
+    const templatePath = path.join(
+      __dirname,
+      'disability-appeal-template.html'
+    );
     const htmlTemplate = await fs.readFile(templatePath, 'utf8');
 
     const plainData = formData.toObject ? formData.toObject() : formData;
@@ -213,19 +260,19 @@ async function generateDisabilityAppealPDF(formData) {
       medicalAppointments: plainData.medicalAppointments || [],
       conditionChanges: plainData.conditionChanges || {},
       activityLimitations: plainData.activityLimitations || {},
-      emergencyContact: plainData.emergencyContact || {}
+      emergencyContact: plainData.emergencyContact || {},
     };
 
-    handlebars.registerHelper('formatDate', function(date) {
+    handlebars.registerHelper('formatDate', function (date) {
       if (!date) return 'N/A';
       return new Date(date).toLocaleDateString();
     });
 
-    handlebars.registerHelper('boolToYesNo', function(value) {
+    handlebars.registerHelper('boolToYesNo', function (value) {
       return value ? 'Yes' : 'No';
     });
 
-    handlebars.registerHelper('gt', function(a, b) {
+    handlebars.registerHelper('gt', function (a, b) {
       return a > b;
     });
 
@@ -237,7 +284,7 @@ async function generateDisabilityAppealPDF(formData) {
 
     const browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
     const page = await browser.newPage();
@@ -246,14 +293,13 @@ async function generateDisabilityAppealPDF(formData) {
     await page.pdf({
       path: pdfPath,
       format: 'A4',
-      printBackground: true
+      printBackground: true,
     });
 
     await browser.close();
 
     console.log('PDF generated successfully:', pdfPath);
     return pdfPath;
-
   } catch (error) {
     console.error('PDF generation failed:', error);
     throw error;
@@ -261,7 +307,7 @@ async function generateDisabilityAppealPDF(formData) {
 }
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -269,74 +315,85 @@ const transporter = nodemailer.createTransport({
 });
 
 // API Endpoint to Handle Disability Appeal Form Submission
-app.post("/api/disability-appeal", validateDisabilityAppeal, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
-  try {
-    // Save to MongoDB
-    const savedAppeal = await DisabilityAppeal.create(req.body);
-
-    // Generate PDF
-    let pdfFileName;
-    try {
-      pdfFileName = await generateDisabilityAppealPDF(savedAppeal);
-
-      // Send email with PDF attachment
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: ["ammar@meetgabbi.com", "ayaz.ext@gmail.com"],
-        subject: `Disability Appeal Form Submission - ${savedAppeal.name}`,
-        text: `Dear Team,\n\nA new disability appeal form has been submitted by ${savedAppeal.name}. Please find attached the PDF containing the submitted information.\n\nBest regards,\nSystem`,
-        attachments: [{ 
-          filename: `disability_appeal_${savedAppeal._id}.pdf`, 
-          path: pdfFileName 
-        }],
-      };
-
-      await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully");
-
-      // Clean up PDF file
-      await fsPromises.unlink(pdfFileName);
-    } catch (pdfError) {
-      console.error("Error generating PDF or sending email:", pdfError);
+app.post(
+  '/api/disability-appeal',
+  validateDisabilityAppeal,
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    // Send data to GoHighLevel webhook
     try {
-      const webhookUrl = "https://services.leadconnectorhq.com/hooks/CECLKLJ2HKEDjXUL5Ibj/webhook-trigger/280d88e9-2564-423c-9ac6-9976ec6b7c60";
-      await axios.post(webhookUrl, {
-        name: savedAppeal.name,
-        ssn: savedAppeal.ssn,
-        medicalAppointments: savedAppeal.medicalAppointments,
-        conditionChanges: savedAppeal.conditionChanges,
-        activityLimitations: savedAppeal.activityLimitations,
-        emergencyContact: savedAppeal.emergencyContact,
-        timestamp: savedAppeal.timestamp,
+      // Save to MongoDB
+      const savedAppeal = await DisabilityAppeal.create(req.body);
+
+      // Generate PDF
+      let pdfFileName;
+      try {
+        pdfFileName = await generateDisabilityAppealPDF(savedAppeal);
+
+        // Send email with PDF attachment
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: ['ammar@meetgabbi.com', 'ayaz.ext@gmail.com'],
+          subject: `Disability Appeal Form Submission - ${savedAppeal.name}`,
+          text: `Dear Team,\n\nA new disability appeal form has been submitted by ${savedAppeal.name}. Please find attached the PDF containing the submitted information.\n\nBest regards,\nSystem`,
+          attachments: [
+            {
+              filename: `disability_appeal_${savedAppeal._id}.pdf`,
+              path: pdfFileName,
+            },
+          ],
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully');
+
+        // Clean up PDF file
+        await fsPromises.unlink(pdfFileName);
+      } catch (pdfError) {
+        console.error('Error generating PDF or sending email:', pdfError);
+      }
+
+      // Send data to GoHighLevel webhook
+      try {
+        const webhookUrl =
+          'https://services.leadconnectorhq.com/hooks/CECLKLJ2HKEDjXUL5Ibj/webhook-trigger/280d88e9-2564-423c-9ac6-9976ec6b7c60';
+        await axios.post(webhookUrl, {
+          name: savedAppeal.name,
+          ssn: savedAppeal.ssn,
+          medicalAppointments: savedAppeal.medicalAppointments,
+          conditionChanges: savedAppeal.conditionChanges,
+          activityLimitations: savedAppeal.activityLimitations,
+          emergencyContact: savedAppeal.emergencyContact,
+          timestamp: savedAppeal.timestamp,
+        });
+        console.log('Data successfully sent to GoHighLevel webhook');
+      } catch (webhookError) {
+        console.error(
+          'Error sending data to GoHighLevel webhook:',
+          webhookError
+        );
+      }
+
+      res.status(201).json({
+        message: 'Disability appeal submitted successfully',
+        data: savedAppeal,
       });
-      console.log("Data successfully sent to GoHighLevel webhook");
-    } catch (webhookError) {
-      console.error("Error sending data to GoHighLevel webhook:", webhookError);
+    } catch (error) {
+      console.error('Error saving disability appeal:', error);
+      res.status(500).json({
+        error: error.message || 'Internal server error',
+        details:
+          process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      });
     }
-
-    res.status(201).json({ 
-      message: "Disability appeal submitted successfully", 
-      data: savedAppeal 
-    });
-  } catch (error) {
-    console.error("Error saving disability appeal:", error);
-    res.status(500).json({
-      error: error.message || "Internal server error",
-      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
   }
-});
+);
 
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API is working correctly 🚀" });
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working correctly 🚀' });
 });
 
 // Start Server
