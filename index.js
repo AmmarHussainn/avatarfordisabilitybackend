@@ -129,16 +129,84 @@ const validateDisabilityAppeal = [
   body('emergencyContact.relationship').trim().notEmpty(),
 ];
 
+// async function generateDisabilityAppealPDF(formData) {
+//   try {
+//     // Load template
+//     const templatePath = path.join(__dirname, 'disability-appeal-template.html');
+//     const htmlTemplate = await fs.readFile(templatePath, 'utf8');
+
+//     // Convert Mongoose document to plain object
+//     const plainData = formData.toObject ? formData.toObject() : formData;
+    
+//     // Prepare template data
+//     const templateData = {
+//       name: plainData.name,
+//       ssn: plainData.ssn,
+//       medicalAppointments: plainData.medicalAppointments || [],
+//       conditionChanges: plainData.conditionChanges || {},
+//       activityLimitations: plainData.activityLimitations || {},
+//       emergencyContact: plainData.emergencyContact || {}
+//     };
+
+//     // Register Handlebars helpers
+//     handlebars.registerHelper('formatDate', function(date) {
+//       if (!date) return 'N/A';
+//       return new Date(date).toLocaleDateString();
+//     });
+
+//     handlebars.registerHelper('boolToYesNo', function(value) {
+//       return value ? 'Yes' : 'No';
+//     });
+
+//     handlebars.registerHelper('gt', function(a, b) {
+//       return a > b;
+//     });
+
+//     // Compile template
+//     const template = handlebars.compile(htmlTemplate);
+//     const html = template(templateData);
+
+//     // Debug: Save HTML for inspection
+//     await fs.writeFile('debug_disability_appeal.html', html);
+
+//     // PDF generation options (matches your A4 requirements)
+//     const pdfOptions = {
+//       format: 'A4',
+//       orientation: 'portrait',
+     
+//       type: 'pdf',
+//       quality: '100',
+//       timeout: 60000
+//     };
+
+//     // Generate PDF
+//     const pdfFileName = `Disability_Appeal_${Date.now()}.pdf`;
+    
+//     return new Promise((resolve, reject) => {
+//       pdf.create(html, pdfOptions).toFile(pdfFileName, (err, res) => {
+//         if (err) {
+//           console.error('PDF generation failed:', err);
+//           return reject(err);
+//         }
+//         console.log('PDF generated successfully:', res.filename);
+//         resolve(pdfFileName);
+//       });
+//     });
+
+//   } catch (error) {
+//     console.error('PDF generation failed:', error);
+//     throw error;
+//   }
+// }
+
+
 async function generateDisabilityAppealPDF(formData) {
   try {
-    // Load template
     const templatePath = path.join(__dirname, 'disability-appeal-template.html');
     const htmlTemplate = await fs.readFile(templatePath, 'utf8');
 
-    // Convert Mongoose document to plain object
     const plainData = formData.toObject ? formData.toObject() : formData;
-    
-    // Prepare template data
+
     const templateData = {
       name: plainData.name,
       ssn: plainData.ssn,
@@ -148,7 +216,6 @@ async function generateDisabilityAppealPDF(formData) {
       emergencyContact: plainData.emergencyContact || {}
     };
 
-    // Register Handlebars helpers
     handlebars.registerHelper('formatDate', function(date) {
       if (!date) return 'N/A';
       return new Date(date).toLocaleDateString();
@@ -162,36 +229,30 @@ async function generateDisabilityAppealPDF(formData) {
       return a > b;
     });
 
-    // Compile template
     const template = handlebars.compile(htmlTemplate);
     const html = template(templateData);
 
-    // Debug: Save HTML for inspection
-    await fs.writeFile('debug_disability_appeal.html', html);
-
-    // PDF generation options (matches your A4 requirements)
-    const pdfOptions = {
-      format: 'A4',
-      orientation: 'portrait',
-     
-      type: 'pdf',
-      quality: '100',
-      timeout: 60000
-    };
-
-    // Generate PDF
     const pdfFileName = `Disability_Appeal_${Date.now()}.pdf`;
-    
-    return new Promise((resolve, reject) => {
-      pdf.create(html, pdfOptions).toFile(pdfFileName, (err, res) => {
-        if (err) {
-          console.error('PDF generation failed:', err);
-          return reject(err);
-        }
-        console.log('PDF generated successfully:', res.filename);
-        resolve(pdfFileName);
-      });
+    const pdfPath = path.join(__dirname, pdfFileName);
+
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+
+    await page.pdf({
+      path: pdfPath,
+      format: 'A4',
+      printBackground: true
+    });
+
+    await browser.close();
+
+    console.log('PDF generated successfully:', pdfPath);
+    return pdfPath;
 
   } catch (error) {
     console.error('PDF generation failed:', error);
